@@ -9,26 +9,19 @@ import MyClass from './MyClass.js'
 import Router from './Router.vue'
 import router from './router'
 
-let items = []
+const items = []
 for (var i = 0; i < 100; i++) {
   items.push({ id: i })
 }
 
-let circular = {}
+const circular = {}
 circular.self = circular
 
 new Vue({
   store,
   router,
   render (h) {
-    return h('div', null, [
-      h(Counter),
-      h(Target, {props:{msg: 'hi', ins: new MyClass()}}),
-      h(Other),
-      h(Events),
-      h(NativeTypes),
-      h(Router)
-    ])
+    return h('div', null, [h(Counter)])
   },
   data: {
     obj: {
@@ -39,16 +32,3 @@ new Vue({
 }).$mount('#app')
 
 // custom element instance
-const ce = document.querySelector('#shadow')
-if (ce.attachShadow) {
-  const shadowRoot = ce.attachShadow({ mode: 'open' })
-
-  const ceVM = new Vue({
-    name: 'Shadow',
-    render (h) {
-      return h('h2', 'Inside Shadow DOM!')
-    }
-  }).$mount()
-
-  shadowRoot.appendChild(ceVM.$el)
-}

@@ -43,70 +43,65 @@
 </template>
 
 <script>
-import { mapState, mapActions } from 'vuex'
+import { mapState, mapActions } from 'vuex';
 
-import ScrollPane from 'components/ScrollPane.vue'
-import ActionHeader from 'components/ActionHeader.vue'
-import ComponentInstance from './ComponentInstance.vue'
+import ScrollPane from 'components/ScrollPane.vue';
+import ActionHeader from 'components/ActionHeader.vue';
+import ComponentInstance from './ComponentInstance.vue';
 
-import { classify, focusInput } from 'src/util'
-import Keyboard, {
-  UP,
-  DOWN,
-  LEFT,
-  RIGHT
-} from '../../mixins/keyboard'
+import { classify, focusInput } from 'src/util';
+import Keyboard, { UP, DOWN, LEFT, RIGHT } from '../../mixins/keyboard';
 
 export default {
   mixins: [
     Keyboard({
-      onKeyDown ({ key, modifiers }) {
+      onKeyDown({ key, modifiers }) {
         switch (modifiers) {
           case 'ctrl':
             if (key === 'f') {
-              focusInput(this.$refs.filterInstances)
-              return false
+              focusInput(this.$refs.filterInstances);
+              return false;
             }
-            break
+            break;
           case '':
             if ([LEFT, RIGHT, UP, DOWN].includes(key)) {
-              const all = getAllInstances(this.$refs.instances)
+              const all = getAllInstances(this.$refs.instances);
               if (!all.length) {
-                return
+                return;
               }
 
-              const { current, currentIndex } = findCurrent(all, i => i.selected)
+              const { current, currentIndex } = findCurrent(all, i => i.selected);
               if (!current) {
-                return
+                return;
               }
 
-              let instanceToSelect
+              let instanceToSelect;
 
               if (key === LEFT) {
                 if (current.expanded) {
-                  current.collapse()
+                  current.collapse();
                 } else if (current.$parent && current.$parent.expanded) {
-                  instanceToSelect = current.$parent
+                  instanceToSelect = current.$parent;
                 }
               } else if (key === RIGHT) {
                 if (current.expanded && current.$children.length) {
-                  instanceToSelect = findByIndex(all, currentIndex + 1)
+                  instanceToSelect = findByIndex(all, currentIndex + 1);
                 } else {
-                  current.expand()
+                  current.expand();
                 }
               } else if (key === UP) {
-                instanceToSelect = findByIndex(all, currentIndex - 1)
+                instanceToSelect = findByIndex(all, currentIndex - 1);
               } else if (key === DOWN) {
-                instanceToSelect = findByIndex(all, currentIndex + 1)
+                instanceToSelect = findByIndex(all, currentIndex + 1);
               }
 
               if (instanceToSelect) {
-                instanceToSelect.select()
-                instanceToSelect.scrollIntoView(false)
+                instanceToSelect.select();
+                instanceToSelect.scrollIntoView(false);
               }
-              return false
+              return false;
             } else if (key === 's') {
-              this.setSelecting(!this.selecting)
+              this.setSelecting(!this.selecting);
             }
         }
       }
@@ -123,92 +118,96 @@ export default {
     instances: Array
   },
 
-  data () {
+  data() {
     return {
       selecting: false
-    }
+    };
   },
 
   computed: {
-    ...mapState('components', [
-      'classifyComponents'
-    ])
+    ...mapState('components', ['classifyComponents'])
   },
 
-  mounted () {
+  mounted() {
     bridge.on('instance-selected', () => {
-      this.setSelecting(false)
-    })
+      this.setSelecting(false);
+    });
   },
 
-  beforeDestroy () {
-    this.setSelecting(false)
+  beforeDestroy() {
+    this.setSelecting(false);
   },
 
   methods: {
-    ...mapActions('components', [
-      'toggleClassifyComponents'
-    ]),
+    ...mapActions('components', ['toggleClassifyComponents']),
 
-    filterInstances (e) {
-      bridge.send('filter-instances', classify(e.target.value))
+    filterInstances(e) {
+      bridge.send('filter-instances', classify(e.target.value));
     },
 
-    setSelecting (value) {
+    setSelecting(value) {
       if (this.selecting !== value) {
-        this.selecting = value
+        this.selecting = value;
 
         if (this.selecting) {
-          bridge.send('start-component-selector')
+          bridge.send('start-component-selector');
         } else {
-          bridge.send('stop-component-selector')
+          bridge.send('stop-component-selector');
         }
       }
     }
   }
+};
+
+function getAllInstances(list) {
+  return Array.prototype.concat.apply(
+    [],
+    list.map(instance => {
+      return [instance, ...getAllInstances(instance.$children)];
+    })
+  );
 }
 
-function getAllInstances (list) {
-  return Array.prototype.concat.apply([], list.map(instance => {
-    return [instance, ...getAllInstances(instance.$children)]
-  }))
-}
-
-function findCurrent (all, check) {
+function findCurrent(all, check) {
   for (let i = 0; i < all.length; i++) {
     if (check(all[i])) {
       return {
         current: all[i],
         currentIndex: i
-      }
+      };
     }
   }
   return {
     current: null,
     currentIndex: -1
-  }
+  };
 }
 
-function findByIndex (all, index) {
+function findByIndex(all, index) {
   if (index < 0) {
-    return all[0]
+    return all[0];
   } else if (index >= all.length) {
-    return all[all.length - 1]
+    return all[all.length - 1];
   } else {
-    return all[index]
+    return all[index];
   }
 }
 </script>
 
 <style lang="stylus">
-@import "../../variables"
+@import '../../variables';
 
-.tree
-  padding 5px
+.tree {
+  padding: 5px;
+}
 
-.select-component
-  &.active
-    color $active-color
-    .svg-icon
-      animation pulse 2s infinite linear
+.select-component {
+  &.active {
+    color: $active-color;
+
+    .svg-icon {
+      animation: pulse 2s infinite linear;
+    }
+  }
+}
 </style>

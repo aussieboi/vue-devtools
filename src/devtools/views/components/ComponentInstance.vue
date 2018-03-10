@@ -36,6 +36,14 @@
         inactive
       </span>
       <span class="spacer"></span>
+
+      <BaseIcon
+        class="icon-button"
+        icon="format_indent_increase"
+        v-tooltip="'Inspect Components'"
+        @click="toggle"
+      />
+      <span class="spacer"></span>
       <BaseIcon
         class="icon-button"
         icon="visibility"
@@ -43,193 +51,236 @@
         @click="scrollToInstance"
       />
     </div>
+   
     <div v-if="expanded">
+       <span class="content">
+       <dom-instance
+     class="content dom"
+      v-for="(item, key) in instance.innerHTML" 
+      :key="key"
+      :item="item"
+      :depth="depth + 1">
+     </dom-instance>
+      </span>
       <component-instance
         v-for="child in sortedChildren"
         :key="child.id"
         :instance="child"
         :depth="depth + 1">
       </component-instance>
+    
     </div>
   </div>
 </template>
 
 <script>
-import { mapState } from 'vuex'
-import { classify, scrollIntoView } from '../../../util'
+import { mapState } from 'vuex';
+import { classify, scrollIntoView } from '../../../util';
+import DomInstance from './DOMTreeInstance.vue';
 
 export default {
   name: 'ComponentInstance',
+  components: {
+    DomInstance
+  },
   props: {
     instance: Object,
     depth: Number
   },
-  created () {
+  created() {
     // expand root by default
     if (this.depth === 0) {
-      this.expand()
+      this.expand();
     }
   },
   computed: {
-    ...mapState('components', [
-      'classifyComponents'
-    ]),
-    scrollToExpanded () {
-      return this.$store.state.components.scrollToExpanded
+    ...mapState('components', ['classifyComponents']),
+    scrollToExpanded() {
+      return this.$store.state.components.scrollToExpanded;
     },
-    expanded () {
-      return !!this.$store.state.components.expansionMap[this.instance.id]
+    expanded() {
+      return !!this.$store.state.components.expansionMap[this.instance.id];
     },
-    selected () {
-      return this.instance.id === this.$store.state.components.inspectedInstance.id
+    selected() {
+      return this.instance.id === this.$store.state.components.inspectedInstance.id;
     },
-    sortedChildren () {
+    sortedChildren() {
       return this.instance.children.slice().sort((a, b) => {
-        return a.top === b.top
-          ? a.id - b.id
-          : a.top - b.top
-      })
+        return a.top === b.top ? a.id - b.id : a.top - b.top;
+      });
     },
-    displayName () {
-      return this.classifyComponents ? classify(this.instance.name) : this.instance.name
+    displayName() {
+      return this.classifyComponents ? classify(this.instance.name) : this.instance.name;
     }
   },
   watch: {
     scrollToExpanded: {
-      handler (value, oldValue) {
+      handler(value, oldValue) {
         if (value !== oldValue && value === this.instance.id) {
-          this.scrollIntoView()
+          this.scrollIntoView();
         }
       },
       immediate: true
     }
   },
   methods: {
-    toggle (event) {
-      this.toggleWithValue(!this.expanded, event.altKey)
+    toggle(event) {
+      this.toggleWithValue(!this.expanded, event.altKey);
     },
-    expand () {
-      this.toggleWithValue(true)
+    expand() {
+      this.toggleWithValue(true);
     },
-    collapse () {
-      this.toggleWithValue(false)
+    collapse() {
+      this.toggleWithValue(false);
     },
-    toggleWithValue (val, recursive = false) {
+    toggleWithValue(val, recursive = false) {
       this.$store.dispatch('components/toggleInstance', {
         instance: this.instance,
         expanded: val,
         recursive
-      })
+      });
     },
-    select () {
-      bridge.send('select-instance', this.instance.id)
+    select() {
+      bridge.send('select-instance', this.instance.id);
     },
-    enter () {
-      bridge.send('enter-instance', this.instance.id)
+    enter() {
+      bridge.send('enter-instance', this.instance.id);
     },
-    leave () {
-      bridge.send('leave-instance', this.instance.id)
+    leave() {
+      bridge.send('leave-instance', this.instance.id);
     },
-    scrollToInstance () {
-      bridge.send('scroll-to-instance', this.instance.id)
+    scrollToInstance() {
+      bridge.send('scroll-to-instance', this.instance.id);
     },
-    scrollIntoView (center = true) {
+    scrollIntoView(center = true) {
       this.$nextTick(() => {
-        scrollIntoView(this.$globalRefs.leftScroll, this.$refs.self, center)
-      })
+        scrollIntoView(this.$globalRefs.leftScroll, this.$refs.self, center);
+      });
     }
   }
-}
+};
 </script>
 
 <style lang="stylus" scoped>
-@import "../../variables"
+@import '../../variables';
 
-.instance
-  font-family Menlo, Consolas, monospace
-  &.inactive
-    opacity .5
+.instance {
+  font-family: Menlo, Consolas, monospace;
 
-.self
-  cursor pointer
-  position relative
-  overflow hidden
-  z-index 2
-  border-radius 3px
-  font-size 14px
-  line-height 22px
-  height 22px
-  white-space nowrap
-  display flex
-  align-items center
-  padding-right 6px
+  &.inactive {
+    opacity: 0.5;
+  }
+}
 
-  &:hidden
-    display none
+.self {
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  z-index: 2;
+  border-radius: 3px;
+  font-size: 14px;
+  line-height: 22px;
+  height: 22px;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  padding-right: 6px;
 
-.children
-  position relative
-  z-index 1
+  &:hidden {
+    display: none;
+  }
+}
 
-.content
-  position relative
-  padding-left 22px
+.children {
+  position: relative;
+  z-index: 1;
+}
 
-.info
-  color #fff
-  font-size 10px
-  padding 3px 5px 2px
-  display inline-block
-  line-height 10px
-  border-radius 3px
-  position relative
-  top -1px
-  &.console
-    color #fff
-    background-color transparent
-    top 0px
-  &.router-view
-    background-color #ff8344
-  &.fragment
-    background-color #b3cbf7
-  &.inactive
-    background-color #aaa
-  &:not(.console)
-    margin-left 6px
+.content {
+  position: relative;
+  padding-left: 22px;
 
-.arrow-wrapper
-  position absolute
-  display inline-block
-  width 16px
-  height 16px
-  top 1px
-  left 4px
+  &.dom {
+    font-size: 12px;
+  }
+}
 
-.arrow
-  position absolute
-  top 5px
-  left 4px
-  transition transform .1s ease
-  &.rotated
-    transform rotate(90deg)
+.info {
+  color: #fff;
+  font-size: 10px;
+  padding: 3px 5px 2px;
+  display: inline-block;
+  line-height: 10px;
+  border-radius: 3px;
+  position: relative;
+  top: -1px;
 
-.angle-bracket
-  color $darkerGrey
+  &.console {
+    color: #fff;
+    background-color: transparent;
+    top: 0px;
+  }
 
-.item-name
-  color $component-color
-  margin 0 1px
+  &.router-view {
+    background-color: #ff8344;
+  }
 
-.spacer
-  flex 100% 1 1
-  width 0
+  &.fragment {
+    background-color: #b3cbf7;
+  }
 
-.icon-button
-  font-size 16px
+  &.inactive {
+    background-color: #aaa;
+  }
 
-  .self:not(:hover) &
-    visibility hidden
+  &:not(.console) {
+    margin-left: 6px;
+  }
+}
 
-  .self.selected & >>> svg
-    fill $white
+.arrow-wrapper {
+  position: absolute;
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  top: 1px;
+  left: 4px;
+}
+
+.arrow {
+  position: absolute;
+  top: 5px;
+  left: 4px;
+  transition: transform 0.1s ease;
+
+  &.rotated {
+    transform: rotate(90deg);
+  }
+}
+
+.angle-bracket {
+  color: $darkerGrey;
+}
+
+.item-name {
+  color: $component-color;
+  margin: 0 1px;
+}
+
+.spacer {
+  flex: 100% 1 1;
+  width: 0;
+}
+
+.icon-button {
+  font-size: 16px;
+
+  .self:not(:hover) & {
+    visibility: hidden;
+  }
+
+  .self.selected & >>> svg {
+    fill: $white;
+  }
+}
 </style>

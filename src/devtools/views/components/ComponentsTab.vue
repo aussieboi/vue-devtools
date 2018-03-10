@@ -8,19 +8,19 @@
 </template>
 
 <script>
-import SplitPane from 'components/SplitPane.vue'
-import ComponentTree from './ComponentTree.vue'
-import ComponentInspector from './ComponentInspector.vue'
+import SplitPane from 'components/SplitPane.vue';
+import ComponentTree from './ComponentTree.vue';
+import ComponentInspector from './ComponentInspector.vue';
 
-import { mapState } from 'vuex'
+import { mapState } from 'vuex';
 
 const superDef = {
-  data () {
+  data() {
     return {
       foo: 'bar'
-    }
+    };
   }
-}
+};
 
 export default {
   extends: superDef,
@@ -34,9 +34,9 @@ export default {
     inspectedInstance: state => state.inspectedInstance
   }),
   methods: {
-    filter (e) {
-      bridge.send('filter-instances', e.target.value)
+    filter(e) {
+      bridge.send('filter-instances', e.target.value);
     }
   }
-}
+};
 </script>

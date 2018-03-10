@@ -13,15 +13,17 @@ target.onload = () => {
       // 3. called by devtools: inject backend
       inject('./build/backend.js', () => {
         // 4. send back bridge
-        cb(new Bridge({
-          listen (fn) {
-            targetWindow.parent.addEventListener('message', evt => fn(evt.data))
-          },
-          send (data) {
-            console.log('devtools -> backend', data)
-            targetWindow.postMessage(data, '*')
-          }
-        }))
+        cb(
+          new Bridge({
+            listen (fn) {
+              targetWindow.parent.addEventListener('message', evt => fn(evt.data))
+            },
+            send (data) {
+              console.log('devtools -> backend', data)
+              targetWindow.postMessage(data, '*')
+            }
+          })
+        )
       })
     },
     onReload (reloadFn) {

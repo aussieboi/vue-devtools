@@ -4,17 +4,18 @@
 import { highlight, unHighlight, getInstanceRect } from './highlighter'
 import { initVuexBackend } from './vuex'
 import { initEventsBackend } from './events'
-import { findRelatedComponent } from './utils'
+import { findRelatedComponent, pprintDom } from './utils'
 import { stringify, classify, camelize, set, parse, getComponentName } from '../util'
 import ComponentSelector from './component-selector'
 import config from './config'
+import xlmToJson from 'xml-js'
 
 // hook should have been injected before this executes.
 const hook = window.__VUE_DEVTOOLS_GLOBAL_HOOK__
 const rootInstances = []
 const propModes = ['default', 'sync', 'once']
 
-export const instanceMap = window.__VUE_DEVTOOLS_INSTANCE_MAP__ = new Map()
+export const instanceMap = (window.__VUE_DEVTOOLS_INSTANCE_MAP__ = new Map())
 const consoleBoundInstances = Array(5)
 let currentInspectedId
 let bridge
@@ -91,6 +92,7 @@ function connect () {
 
     if (instance) {
       const id = instance.__VUE_DEVTOOLS_UID__
+      console.log(instance)
       if (id) {
         return bridge.send('inspect-instance', id)
       }
@@ -230,11 +232,8 @@ function flush () {
  */
 
 function findQualifiedChildrenFromList (instances) {
-  instances = instances
-    .filter(child => !child._isBeingDestroyed)
-  return !filter
-    ? instances.map(capture)
-    : Array.prototype.concat.apply([], instances.map(findQualifiedChildren))
+  instances = instances.filter(child => !child._isBeingDestroyed)
+  return !filter ? instances.map(capture) : Array.prototype.concat.apply([], instances.map(findQualifiedChildren))
 }
 
 /**
@@ -247,9 +246,7 @@ function findQualifiedChildrenFromList (instances) {
  */
 
 function findQualifiedChildren (instance) {
-  return isQualified(instance)
-    ? capture(instance)
-    : findQualifiedChildrenFromList(instance.$children)
+  return isQualified(instance) ? capture(instance) : findQualifiedChildrenFromList(instance.$children)
 }
 
 /**
@@ -280,14 +277,16 @@ function capture (instance, _, list) {
   // behaviour
   instance.__VUE_DEVTOOLS_UID__ = getUniqueId(instance)
   mark(instance)
+  console.log('_________________')
+  const test3 = xlmToJson.xml2js(pprintDom(instance.$el.outerHTML), { compact: false, spaces: 2 })
   const ret = {
     id: instance.__VUE_DEVTOOLS_UID__,
+    innerHTML: test3,
+    test1: 'test1',
     name: getInstanceName(instance),
     inactive: !!instance._inactive,
     isFragment: !!instance._isFragment,
-    children: instance.$children
-      .filter(child => !child._isBeingDestroyed)
-      .map(capture)
+    children: instance.$children.filter(child => !child._isBeingDestroyed).map(capture)
   }
   // record screen position to ensure correct ordering
   if ((!list || list.length > 1) && !instance._inactive) {
@@ -305,13 +304,9 @@ function capture (instance, _, list) {
     ret.isRouterView = true
     if (!instance._inactive && instance.$route) {
       const matched = instance.$route.matched
-      const depth = isRouterView2
-        ? instance.$vnode.data.routerViewDepth
-        : instance._routerView.depth
+      const depth = isRouterView2 ? instance.$vnode.data.routerViewDepth : instance._routerView.depth
       ret.matchedRouteSegment =
-        matched &&
-        matched[depth] &&
-        (isRouterView2 ? matched[depth].path : matched[depth].handler.path)
+        matched && matched[depth] && (isRouterView2 ? matched[depth].path : matched[depth].handler.path)
     }
   }
   return ret
@@ -345,8 +340,11 @@ function getInstanceDetails (id) {
   } else {
     const data = {
       id: id,
+      all: instance,
+      innerHTML: toString(instance.$el),
       name: getInstanceName(instance),
-      state: getInstanceState(instance)
+      state: getInstanceState(instance),
+      instanceData1: stringify(instance.$el)
     }
 
     let i
@@ -375,9 +373,11 @@ export function getCustomInstanceDetails (instance) {
     _custom: {
       type: 'component',
       id: instance.__VUE_DEVTOOLS_UID__,
+      innerHTML: toString(instance.$el),
       display: getInstanceName(instance),
       tooltip: 'Component instance',
       value: reduceStateList(state),
+      instanceData: instance,
       fields: {
         abstract: true
       }
@@ -391,7 +391,7 @@ export function reduceStateList (list) {
   }
   return list.reduce((map, item) => {
     const key = item.type || 'data'
-    const obj = map[key] = map[key] || {}
+    const obj = (map[key] = map[key] || {})
     obj[item.key] = item.value
     return map
   }, {})
@@ -407,9 +407,7 @@ export function reduceStateList (list) {
 export function getInstanceName (instance) {
   const name = getComponentName(instance.$options)
   if (name) return name
-  return instance.$root === instance
-    ? 'Root'
-    : 'Anonymous Component'
+  return instance.$root === instance ? 'Root' : 'Anonymous Component'
 }
 
 /**
@@ -432,11 +430,13 @@ function processProps (instance) {
         type: 'props',
         key: prop.path,
         value: instance[prop.path],
-        meta: options ? {
-          type: options.type ? getPropType(options.type) : 'any',
-          required: !!options.required,
-          mode: propModes[prop.mode]
-        } : {}
+        meta: options
+          ? {
+            type: options.type ? getPropType(options.type) : 'any',
+            required: !!options.required,
+            mode: propModes[prop.mode]
+          }
+          : {}
       }
     })
   } else if ((props = instance.$options.props)) {
@@ -449,12 +449,14 @@ function processProps (instance) {
         type: 'props',
         key,
         value: instance[key],
-        meta: prop ? {
-          type: prop.type ? getPropType(prop.type) : 'any',
-          required: !!prop.required
-        } : {
-          type: 'invalid'
-        }
+        meta: prop
+          ? {
+            type: prop.type ? getPropType(prop.type) : 'any',
+            required: !!prop.required
+          }
+          : {
+            type: 'invalid'
+          }
       })
     }
     return propsData
@@ -472,9 +474,7 @@ function processProps (instance) {
 const fnTypeRE = /^(?:function|class) (\w+)/
 function getPropType (type) {
   const match = type.toString().match(fnTypeRE)
-  return typeof type === 'function'
-    ? match && match[1] || 'any'
-    : 'any'
+  return typeof type === 'function' ? (match && match[1]) || 'any' : 'any'
 }
 
 /**
@@ -487,17 +487,10 @@ function getPropType (type) {
  */
 
 function processState (instance) {
-  const props = isLegacy
-    ? instance._props
-    : instance.$options.props
-  const getters =
-    instance.$options.vuex &&
-    instance.$options.vuex.getters
+  const props = isLegacy ? instance._props : instance.$options.props
+  const getters = instance.$options.vuex && instance.$options.vuex.getters
   return Object.keys(instance._data)
-    .filter(key => (
-      !(props && key in props) &&
-      !(getters && key in getters)
-    ))
+    .filter(key => !(props && key in props) && !(getters && key in getters))
     .map(key => ({
       key,
       value: instance._data[key],
@@ -521,9 +514,7 @@ function processComputed (instance) {
   // properties from object's prototype
   for (const key in defs) {
     const def = defs[key]
-    const type = typeof def === 'function' && def.vuex
-      ? 'vuex bindings'
-      : 'computed'
+    const type = typeof def === 'function' && def.vuex ? 'vuex bindings' : 'computed'
     // use try ... catch here because some computed properties may
     // throw error during its evaluation
     let computedProp = null
@@ -564,16 +555,18 @@ function processRouteContext (instance) {
       if (route.hash) value.hash = route.hash
       if (route.name) value.name = route.name
       if (route.meta) value.meta = route.meta
-      return [{
-        key: '$route',
-        value: {
-          _custom: {
-            type: 'router',
-            abstract: true,
-            value
+      return [
+        {
+          key: '$route',
+          value: {
+            _custom: {
+              type: 'router',
+              abstract: true,
+              value
+            }
           }
         }
-      }]
+      ]
     }
   } catch (e) {
     // Invalid $router
@@ -589,9 +582,7 @@ function processRouteContext (instance) {
  */
 
 function processVuexGetters (instance) {
-  const getters =
-    instance.$options.vuex &&
-    instance.$options.vuex.getters
+  const getters = instance.$options.vuex && instance.$options.vuex.getters
   if (getters) {
     return Object.keys(getters).map(key => {
       return {
@@ -715,12 +706,14 @@ function setStateValue ({ id, path, value, newKey, remove }) {
       if (value) {
         parsedValue = parse(value, true)
       }
-      const api = isLegacy ? {
-        $set: hook.Vue.set,
-        $delete: hook.Vue.delete
-      } : instance
+      const api = isLegacy
+        ? {
+          $set: hook.Vue.set,
+          $delete: hook.Vue.delete
+        }
+        : instance
       set(instance._data, path, parsedValue, (obj, field, value) => {
-        (remove || newKey) && api.$delete(obj, field)
+        ;(remove || newKey) && api.$delete(obj, field)
         !remove && api.$set(obj, newKey || field, value)
       })
     } catch (e) {

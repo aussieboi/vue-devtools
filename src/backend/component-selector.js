@@ -50,6 +50,7 @@ export default class ComponentSelector {
     const el = e.target
     if (el) {
       this.selectedInstance = findRelatedComponent(el)
+      console.log(el)
     }
 
     unHighlight()
